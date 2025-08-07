@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <title>BDBL Chatbot</title>
+
+    <!-- Bengali font -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Noto Sans Bengali', 'Segoe UI', sans-serif;
+            background: #eef1f5;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .chat-container {
+            flex: 1;
+            max-width: 700px;
+            margin: 20px auto;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-box {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bubble {
+            max-width: 70%;
+            padding: 12px 18px;
+            margin-bottom: 12px;
+            border-radius: 20px;
+            line-height: 1.5;
+        }
+
+        .user {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 0;
+        }
+
+        .bot {
+            background-color: #f1f1f1;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 0;
+        }
+
+        form {
+            display: flex;
+            padding: 15px;
+            border-top: 1px solid #ccc;
+            background: #fafafa;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            outline: none;
+            margin-right: 10px;
+        }
+
+        input[type="submit"] {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        .suggestions {
+            padding: 15px;
+            background: #f9f9f9;
+            border-top: 1px solid #ddd;
+        }
+
+        .suggestions span {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 8px 12px;
+            margin: 4px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 15px;
+            background: #343a40;
+            color: white;
+            font-size: 14px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="header">
+    বাংলাদেশ ডেভেলপমেন্ট ব্যাংক - AI চ্যাটবট
+</div>
+
+<div class="chat-container">
+    <!-- আগের চ্যাট বুলবস ও অন্যান্য এলিমেন্ট -->
+    <div class="chat-box" id="chatBox">
+        <div th:each="entry : ${chatHistory}">
+            <div th:if="${entry.sender == 'user'}" class="bubble user">
+                <span th:text="${entry.message}"></span>
+            </div>
+            <div th:if="${entry.sender == 'bot'}" class="bubble bot">
+                <span th:text="${entry.message}"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- এখানে নিচের div বসাবে -->
+    <div style="display: flex; align-items: center; padding: 15px; border-top:1px solid #ccc; background:#fafafa;">
+        <form action="/ask" method="post" th:object="${chatRequest}" style="flex:1; display:flex;">
+            <input type="text" th:field="*{question}" placeholder="আপনার প্রশ্ন লিখুন..." required
+                   style="flex:1; padding:12px; font-size:16px; border-radius:20px; border:1px solid #ccc; margin-right:10px;" />
+            <input type="submit" value="▶️"
+                   style="background-color:#007bff; color:#fff; border:none; padding:12px 20px; border-radius:20px; cursor:pointer;" />
+        </form>
+        <form action="/clear" method="post" style="margin-left:10px;">
+            <button type="submit" style="background-color:#dc3545; color:#fff; border:none; padding:12px 20px; border-radius:20px; cursor:pointer;">Clear All</button>
+        </form>
+    </div>
+
+    <!-- Suggested Questions (Optional) -->
+    <div class="suggestions" id="suggestions">
+        <strong>পরামর্শক প্রশ্ন:</strong>
+        <div id="faqList">
+            <!-- AJAX এখানে র‍্যান্ডম FAQ লোড করবে -->
+        </div>
+    </div>
+<!--    <div class="suggestions">-->
+<!--        <strong>পরামর্শক প্রশ্ন:</strong>-->
+<!--        <div th:each="faq : ${faqs}">-->
+<!--            <span th:text="${faq.question}" onclick="fillInput(this.innerText)"></span>-->
+<!--        </div>-->
+<!--    </div>-->
+</div>
+
+
+
+<div class="footer">
+    &copy; 2025 বাংলাদেশ ডেভেলপমেন্ট ব্যাংক। সর্বস্বত্ব সংরক্ষিত।
+</div>
+
+<script>
+    // পেজ লোড হলে র‍্যান্ডম FAQ লোড করো
+    document.addEventListener("DOMContentLoaded", function() {
+        fetchRandomFaqs();
+    });
+
+    function fetchRandomFaqs() {
+        fetch('/api/faqs/random')
+            .then(response => response.json())
+            .then(data => {
+                const faqListDiv = document.getElementById('faqList');
+                faqListDiv.innerHTML = ''; // পুরনো ডাটা ক্লিয়ার করো
+
+                data.forEach(faq => {
+                    const span = document.createElement('span');
+                    span.textContent = faq.question;
+                    span.style.cssText = `
+                        display: inline-block;
+                        background: #007bff;
+                        color: white;
+                        padding: 8px 12px;
+                        margin: 4px;
+                        border-radius: 20px;
+                        font-size: 14px;
+                        cursor: pointer;
+                    `;
+                    // ক্লিক করলে ইনপুট ফিল্ডে question সেট করবে
+                    span.onclick = function() {
+                        document.querySelector('input[type="text"]').value = faq.question;
+                    };
+                    faqListDiv.appendChild(span);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching FAQs:', error);
+            });
+    }
+</script>
+
+<!--<script>-->
+<!--    // Fill input field when clicking suggestion-->
+<!--    function fillInput(text) {-->
+<!--        document.querySelector('input[type="text"]').value = text;-->
+<!--    }-->
+
+<!--    // Auto scroll to bottom on load-->
+<!--    window.onload = function () {-->
+<!--        let chatBox = document.getElementById("chatBox");-->
+<!--        chatBox.scrollTop = chatBox.scrollHeight;-->
+<!--    };-->
+<!--</script>-->
+
+</body>
+</html>
